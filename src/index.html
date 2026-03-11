@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuestPro - Gerador de Simulados Profissionais</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        <div class="logo-icon">QP</div>
+        <span class="logo-text">QuestPro 1.0</span>
+      </div>
+      <!-- <div class="header-actions">
+        <button class="btn btn-secondary" onclick="showHistory()">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Histórico
+        </button>
+        <button class="btn btn-outline" onclick="exportPDF()" id="btnExport" disabled>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Exportar PDF
+        </button>
+      </div> -->
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-container">
+    <div class="grid-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <!-- Timer -->
+        <div class="timer-container" id="timerContainer" style="display: none;">
+          <div class="timer-label">Tempo Restante</div>
+          <div class="timer-display" id="timerDisplay">55:00</div>
+          <div class="timer-controls">
+            <button class="btn btn-secondary btn-icon" onclick="toggleTimer()" id="btnTimerToggle">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+            <button class="btn btn-secondary btn-icon" onclick="resetTimer()">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Configurações</h3>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Vaga/Cargo</label>
+            <input type="text" class="form-input" id="theme" placeholder="Ex.: Direito Constitucional"
+              value="Técnico em Tecnologia da Informação">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Banca/Estilo</label>
+            <input type="text" class="form-input" id="examBoard" placeholder="Ex.: CESPE, FCC, IBFC" value="CESPE">
+          </div>
+
+          <!-- <div class="form-row"> -->
+          <div class="form-group">
+            <label class="form-label">Quantidade de questões</label>
+            <input type="number" class="form-input" id="quantity" min="1" max="100" value="55">
+          </div>
+          <!-- <div class="form-group">
+              <label class="form-label">Nível</label>
+              <select class="form-select" id="level">
+                <option value="Fácil">Fácil</option>
+                <option value="Médio" selected>Médio</option>
+                <option value="Difícil">Difícil</option>
+              </select>
+            </div> -->
+          <!-- </div> -->
+
+
+
+          <!-- <div class="form-group">
+            <label class="form-label">Tempo (minutos)</label>
+            <input type="number" class="form-input" id="examTime" min="10" max="300" value="55">
+          </div>
+
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="useTimer" checked>
+            <label for="useTimer">Ativar cronômetro</label>
+          </div> -->
+
+          <div class="form-group">
+            <label class="form-label">Instruções Extras</label>
+            <textarea class="form-textarea" id="instructions"
+              placeholder="Ex.: Foque em questões sobre redes, Linux e SQL..."></textarea>
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" style="flex: 1;" onclick="generateExam()">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              Gerar Simulado
+            </button>
+            <button class="btn btn-danger btn-icon" onclick="clearExam()" title="Limpar">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="status-bar" id="statusBar">
+            <span class="status-dot"></span>
+            <span id="statusText">Pronto para gerar um novo simulado</span>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="card" id="statsCard" style="display: none;">
+          <div class="card-header">
+            <h3 class="card-title">Desempenho</h3>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value green" id="correctCount">0</div>
+              <div class="stat-label">Acertos</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value red" id="wrongCount">0</div>
+              <div class="stat-label">Erros</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value blue" id="accuracyPercent">0%</div>
+              <div class="stat-label">Acertos</div>
+            </div>
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="progress-text">
+              <span id="answeredCount">0 respondidas</span>
+              <span id="totalCount">Total: 0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card" id="actionsCard" style="display: none;">
+          <div style="display: flex; gap: 8px;">
+            <!-- <button class="btn btn-primary" style="flex: 1;" onclick="finishExam()" id="btnFinish">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button> -->
+            <button class="btn btn-primary" style="flex: 1;" onclick="correctExam()" id="btnCorrect">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              Finalizar
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Content Area -->
+      <div class="content-area">
+        <div class="questions-header">
+          <h2 class="questions-title" id="examTitle">Simulado</h2>
+          <div class="questions-meta">
+            <div class="meta-item">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <span id="questionCount">0 questões</span>
+            </div>
+            <!-- <div class="meta-item">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span id="examTimeDisplay">55 min</span>
+            </div> -->
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <div id="questionsNav" style="display: none; margin-bottom: 20px;">
+          <div class="questions-nav" id="navContainer"></div>
+        </div>
+
+        <!-- Questions Container -->
+        <div id="questionsContainer">
+          <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <h3 class="empty-title">Nenhum simulado gerado</h3>
+            <p class="empty-text">Configure as opções ao lado e clique em "Gerar Simulado" para começar a estudar.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Results Modal -->
+  <div class="modal-overlay" id="resultsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="resultTitle">Resultado do Simulado</h2>
+        <p class="modal-subtitle" id="resultSubtitle">Veja seu desempenho</p>
+      </div>
+
+      <div class="result-score">
+        <div class="result-number" id="resultScore">0%</div>
+        <div class="result-label">de aproveitamento</div>
+      </div>
+
+      <div class="result-details">
+        <div class="result-detail">
+          <div class="result-detail-value green" id="resultCorrect">0</div>
+          <div class="result-detail-label">Acertos</div>
+        </div>
+        <div class="result-detail">
+          <div class="result-detail-value red" id="resultWrong">0</div>
+          <div class="result-detail-label">Erros</div>
+        </div>
+        <div class="result-detail">
+          <div class="result-detail-value" id="resultTime">00:00</div>
+          <div class="result-detail-label">Tempo</div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeModal()">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refazer
+        </button>
+        <button class="btn btn-secondary" onclick="exportPDF()">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Exportar PDF
+        </button>
+        <button class="btn btn-outline" onclick="closeModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div class="modal-overlay" id="historyModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">Histórico de Simulados</h2>
+        <button class="btn btn-outline btn-icon" onclick="closeHistory()"
+          style="position: absolute; top: 20px; right: 20px;">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="history-list" id="historyList">
+        <!-- History items will be rendered here -->
+      </div>
+      <div style="margin-top: 16px; text-align: center;">
+        <button class="btn btn-danger" onclick="clearHistory()">Limpar Histórico</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
