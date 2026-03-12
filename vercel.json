@@ -5,13 +5,16 @@
       "destination": "/server.js"
     },
     {
+      "source": "/api/gemini.js",
+      "destination": "/src/api/gemini.js"
+    },
+    {
+      "source": "/script.js",
+      "destination": "/src/script.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/src/index.html"
     }
-  ],
-  "functions": {
-    "server.js": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  ]
 }
