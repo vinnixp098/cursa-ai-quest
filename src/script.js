@@ -65,20 +65,21 @@ Formato esperado:
     try {
         const { callGemini } = await import('./api/gemini.js');
         const result = await callGemini(prompt);
-        const rawText = result.data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        const rawText = result.data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
         const cleanJson = rawText.replace(/```json|```/g, "").trim();
         const parsed = JSON.parse(cleanJson);
 
         exam.questions = parsed.questions;
         renderExam();
         startExamUI();
-        setStatus(`Simulado gerado com ${result.model}`);
+        setStatus(`Simulado gerado (${result.model || 'proxy'})`);
     } catch (e) {
         console.error("Falha final:", e);
         setStatus("Erro ao gerar simulado.");
-        alert("Os modelos disponíveis estão com alta demanda agora. Tente novamente em instantes.");
+        alert("Os modelos estão com alta demanda. Tente novamente ou verifique a chave GEMINI_API_KEY no Vercel.");
     }
 }
+
 
 function generateMockQuestion(num, theme) {
     const options = ["A", "B", "C", "D", "E"];
