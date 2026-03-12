@@ -825,12 +825,39 @@
       .sidebar {
         order: 2;
       }
+
+      .main-container {
+        padding: 16px;
+      }
     }
 
     @media (max-width: 768px) {
       .header-content {
-        flex-direction: column;
-        gap: 12px;
+        padding: 0 16px;
+      }
+
+      .logo-text {
+        font-size: 18px;
+      }
+
+      .logo-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+      }
+
+      .header-actions {
+        flex-wrap: wrap;
+        width: 100%;
+      }
+
+      .header-actions .btn {
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .main-container {
+        padding: 12px;
       }
 
       .form-row {
@@ -838,11 +865,167 @@
       }
 
       .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .stat-card {
+        padding: 12px 8px;
+      }
+
+      .stat-value {
+        font-size: 20px;
+      }
+
+      .stat-label {
+        font-size: 10px;
       }
 
       .result-details {
         grid-template-columns: 1fr;
+      }
+
+      .questions-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .questions-title {
+        font-size: 18px;
+      }
+
+      .question-card {
+        padding: 16px;
+      }
+
+      .question-text {
+        font-size: 15px;
+      }
+
+      .option-text {
+        font-size: 13px;
+      }
+
+      .timer-display {
+        font-size: 36px;
+      }
+
+      .modal {
+        width: 95%;
+        padding: 24px;
+      }
+
+      .modal-title {
+        font-size: 22px;
+      }
+
+      .result-number {
+        font-size: 56px;
+      }
+
+      .modal-actions {
+        flex-direction: column;
+      }
+
+      .modal-actions .btn {
+        width: 100%;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .questions-nav {
+        padding: 12px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .logo-text {
+        display: none;
+      }
+
+      .btn {
+        padding: 8px 14px;
+        font-size: 13px;
+      }
+
+      .btn svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stat-card {
+        padding: 14px;
+      }
+
+      .stat-value {
+        font-size: 24px;
+      }
+
+      .question-card {
+        padding: 14px;
+        margin-bottom: 16px;
+      }
+
+      .question-text {
+        font-size: 14px;
+      }
+
+      .option-item {
+        padding: 12px;
+      }
+
+      .option-letter {
+        width: 28px;
+        height: 28px;
+        font-size: 13px;
+      }
+
+      .option-text {
+        font-size: 13px;
+      }
+
+      .timer-display {
+        font-size: 32px;
+      }
+
+      .timer-container {
+        padding: 16px;
+      }
+
+      .result-number {
+        font-size: 48px;
+      }
+
+      .result-score {
+        padding: 24px;
+      }
+
+      .nav-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+      }
+
+      .questions-nav {
+        gap: 6px;
+      }
+
+      .empty-state {
+        padding: 40px 16px;
+      }
+
+      .empty-icon {
+        font-size: 48px;
+      }
+
+      .empty-title {
+        font-size: 18px;
       }
     }
 

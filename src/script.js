@@ -22,7 +22,7 @@ function setStatus(message, loading = false) {
 
 // --- GERAÇÃO DO SIMULADO ---
 
-const GEMINI_API_KEY = 'AIzaSyDBNwQop_ZE28we3ZlkPmSP0OiL-r9R9F0';
+const GEMINI_API_KEY = 'AIzaSyAu98f2Swx9fIlw5V3vpVICst2oSFbookw';
 const MODELS = [
     "gemini-2.0-flash",
     "gemini-2.5-flash-lite",
