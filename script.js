@@ -21,8 +21,89 @@ function setStatus(message, loading = false) {
 }
 
 // --- GERAÇÃO DO SIMULADO ---
-// API logic moved to src/api/gemini.js (see TODO.md)
 
+const GEMINI_API_KEY = document.getElementById('apiKey');
+const MODELS = [
+    "gemini-2.0-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-2.0-flash-001",
+    "gemini-2.0-flash-lite-001",
+    "gemini-flash-lite-latest"
+];
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function callGeminiWithFallback(prompt) {
+    let lastError = null;
+
+    if (!GEMINI_API_KEY) {
+        alert("Informe a chave API"); 
+        return
+    }
+
+
+    for (const model of MODELS) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                console.log("Tentando modelo:", model, "tentativa:", attempt);
+
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": GEMINI_API_KEY
+                    },
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                parts: [{ text: prompt }]
+                            }
+                        ],
+                        generationConfig: {
+                            temperature: 0.7
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                console.log("Resposta Gemini:", data);
+
+                if (data.error) {
+                    lastError = data.error;
+
+                    if (data.error.code === 503) {
+                        await sleep(1200 * attempt);
+                        continue;
+                    }
+
+                    if (data.error.code === 429) {
+                        await sleep(2000 * attempt);
+                        continue;
+                    }
+
+                    throw new Error(`${data.error.code}: ${data.error.message}`);
+                }
+
+                return { data, model };
+            } catch (err) {
+                lastError = err;
+                await sleep(1000 * attempt);
+            }
+        }
+    }
+
+    throw new Error(
+        typeof lastError === "object" && lastError?.message
+            ? lastError.message
+            : "Não foi possível gerar com nenhum modelo."
+    );
+}
 
 async function generateExam() {
     const theme = document.getElementById("theme").value.trim();
@@ -63,23 +144,21 @@ Formato esperado:
 `;
 
     try {
-        const { callGemini } = await import('./api/gemini.js');
-        const result = await callGemini(prompt);
-        const rawText = result.data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        const result = await callGeminiWithFallback(prompt);
+        const rawText = result.data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
         const cleanJson = rawText.replace(/```json|```/g, "").trim();
         const parsed = JSON.parse(cleanJson);
 
         exam.questions = parsed.questions;
         renderExam();
         startExamUI();
-        setStatus(`Simulado gerado (${result.model || 'proxy'})`);
+        setStatus(`Simulado gerado com ${result.model}`);
     } catch (e) {
         console.error("Falha final:", e);
         setStatus("Erro ao gerar simulado.");
-        alert("Os modelos estão com alta demanda. Tente novamente ou verifique a chave GEMINI_API_KEY no Vercel.");
+        alert("Os modelos disponíveis estão com alta demanda agora. Tente novamente em instantes.");
     }
 }
-
 
 function generateMockQuestion(num, theme) {
     const options = ["A", "B", "C", "D", "E"];
