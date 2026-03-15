@@ -249,6 +249,15 @@ function renderPaginatedExam() {
             </div>
         `;
         container.appendChild(qCard);
+        
+        // Restore selection state
+        if (q.userAnswer) {
+            const selectedIndex = q.options.findIndex(opt => opt.letter === q.userAnswer);
+            if (selectedIndex !== -1) {
+                const selectedEl = document.getElementById(`q-${globalIndex}-opt-${selectedIndex}`);
+                if (selectedEl) selectedEl.classList.add('selected');
+            }
+        }
     });
 
     renderNav();
