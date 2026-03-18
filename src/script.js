@@ -17,9 +17,11 @@ const QUESTIONS_PER_PAGE = 5;
 // --- FUNÇÕES DE INICIALIZAÇÃO ---
 
 function setStatus(message, loading = false) {
-    document.getElementById('statusText').textContent = message;
-    document.getElementById('statusBar').querySelector('.status-dot').className =
-        'status-dot' + (loading ? ' loading' : '');
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusBar')?.querySelector('.status-dot');
+    
+    if (statusText) statusText.textContent = message;
+    if (statusDot) statusDot.className = 'status-dot' + (loading ? ' loading' : '');
 }
 
 // --- GERAÇÃO DO SIMULADO ---
@@ -41,18 +43,13 @@ function sleep(ms) {
 async function callGeminiWithFallback(prompt, apiKey) {
     let lastError = null;
 
-    console.log("chave api: ", apiKey)
-    if (!apiKey) {
-        throw new Error("Informe a chave API");
-    }
+    if (!apiKey) throw new Error("Informe a chave API");
 
     for (const model of MODELS) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
-                console.log("Tentando modelo:", model, "tentativa:", attempt);
-
                 const response = await fetch(url, {
                     method: "POST",
                     headers: {
@@ -60,14 +57,8 @@ async function callGeminiWithFallback(prompt, apiKey) {
                         "x-goog-api-key": apiKey
                     },
                     body: JSON.stringify({
-                        contents: [
-                            {
-                                parts: [{ text: prompt }]
-                            }
-                        ],
-                        generationConfig: {
-                            temperature: 0.7
-                        }
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.7 }
                     })
                 });
 
@@ -77,23 +68,7 @@ async function callGeminiWithFallback(prompt, apiKey) {
                 }
 
                 const data = await response.json();
-                console.log("Resposta Gemini:", data);
-
-                if (data.error) {
-                    lastError = data.error;
-
-                    if (data.error.code === 503) {
-                        await sleep(1200 * attempt);
-                        continue;
-                    }
-
-                    if (data.error.code === 429) {
-                        await sleep(2000 * attempt);
-                        continue;
-                    }
-
-                    throw new Error(`${data.error.code}: ${data.error.message}`);
-                }
+                if (data.error) throw new Error(data.error.message);
 
                 return { data, model };
             } catch (err) {
@@ -102,12 +77,7 @@ async function callGeminiWithFallback(prompt, apiKey) {
             }
         }
     }
-
-    throw new Error(
-        typeof lastError === "object" && lastError?.message
-            ? lastError.message
-            : "Não foi possível gerar com nenhum modelo."
-    );
+    throw lastError;
 }
 
 async function generateExam() {
@@ -117,102 +87,32 @@ async function generateExam() {
     const banca = document.getElementById("examBoard").value.trim();
     const qty = Number(document.getElementById("quantity").value);
 
-    if (!theme) {
-        alert("Por favor, digite um tema!");
+    if (!theme || !apiKey) {
+        alert("Por favor, preencha o tema e a chave API!");
         return;
     }
 
-    if (!apiKey) {
-        alert("Por favor, informe a chave API!");
-        return;
-    }
+    setStatus("Gerando simulado...", true);
+    isCorrected = false; // Resetar estado de correção
 
-    setStatus("Gerando simulado com fallback de modelos...", true);
-
-    const prompt = `
-Você é um elaborador especializado em questões de concursos públicos no estilo da banca "${banca}".
-
-Gere ${qty} questões objetivas para o cargo/tema "${theme}".
-
-Regras obrigatórias:
-- Não use imagens.
-- Não mencione imagens, gráficos, tabelas ou figuras.
-- Cada questão deve ter 5 alternativas: A, B, C, D e E.
-- Apenas uma alternativa correta.
-- O nível deve ser compatível com concursos públicos.
-- As alternativas devem ser plausíveis.
-- Evite alternativas absurdas ou muito fáceis de eliminar.
-- O enunciado deve ser claro e objetivo.
-- A explicação deve indicar por que a alternativa correta está certa.
-- ${instructions}
-
-Saída obrigatória:
-- Responda somente com JSON válido.
-- Não use markdown.
-- Não escreva nenhuma observação fora do JSON.
-- Não inclua campos além dos definidos abaixo.
-
-JSON esperado:
-{
-  "questions": [
-    {
-      "id": 1,
-      "subject": "${theme}",
-      "text": "texto da questão",
-      "options": [
-        { "letter": "A", "text": "alternativa A" },
-        { "letter": "B", "text": "alternativa B" },
-        { "letter": "C", "text": "alternativa C" },
-        { "letter": "D", "text": "alternativa D" },
-        { "letter": "E", "text": "alternativa E" }
-      ],
-      "correctAnswer": "A",
-      "explanation": "explicação objetiva"
-    }
-  ]
-}
-`;
+    const prompt = `Gere ${qty} questões de múltipla escolha sobre "${theme}" no estilo da banca "${banca}". Saída em JSON puro: { "questions": [{ "id": 1, "subject": "${theme}", "text": "...", "options": [{"letter": "A", "text": "..."}], "correctAnswer": "A", "explanation": "..." }] }. ${instructions}`;
 
     try {
         const result = await callGeminiWithFallback(prompt, apiKey);
-        if (!result?.data) {
-            throw new Error("Resposta inválida da API");
-        }
         const rawText = result.data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
         const cleanJson = rawText.replace(/```json|```/g, "").trim();
         const parsed = JSON.parse(cleanJson);
 
-        exam.questions = parsed.questions;
+        exam.questions = parsed.questions.map(q => ({ ...q, userAnswer: null }));
         currentPage = 0;
-        renderPaginatedExam();
+        
         startExamUI();
+        renderPaginatedExam();
         setStatus(`Simulado gerado com ${result.model}`);
     } catch (e) {
-        console.error("Falha final:", e);
+        console.error(e);
         setStatus("Erro ao gerar simulado.");
-        alert("Os modelos disponíveis estão com alta demanda agora. Tente novamente em instantes.");
     }
-}
-
-function generateMockQuestion(num, theme) {
-    const options = ["A", "B", "C", "D", "E"];
-    const correctIdx = Math.floor(Math.random() * 5);
-
-    return {
-        id: num,
-        subject: theme,
-        text: `Questão de exemplo sobre ${theme} #${num}: Qual das alternativas abaixo melhor descreve um conceito fundamental desta disciplina no contexto da banca ${document.getElementById('examBoard').value}?`,
-        options: [
-            "Alternativa contendo uma definição técnica precisa.",
-            "Opção com uma pegadinha comum em provas de nível difícil.",
-            "Conceito obsoleto que costuma confundir candidatos.",
-            "Alternativa que mistura dois conceitos distintos.",
-            "Nenhuma das alternativas anteriores está correta."
-        ],
-        correctAnswer: options[correctIdx],
-        userAnswer: null,
-        explanation: "Esta é uma explicação detalhada sobre por que a alternativa correta é a selecionada, focando nos critérios da banca examinadora."
-    };
 }
 
 // --- UI E RENDERIZAÇÃO ---
@@ -229,35 +129,41 @@ function renderPaginatedExam() {
         const globalIndex = start + pageIndex;
         const qCard = document.createElement('div');
         qCard.className = 'question-card';
-        qCard.id = `q-card-${globalIndex}`;
+        
+        // Se já foi corrigido, aplica classes visuais de erro/acerto no card
+        if (isCorrected) {
+            const isRight = q.userAnswer === q.correctAnswer;
+            qCard.classList.add(isRight ? 'correct' : 'wrong');
+        }
 
         qCard.innerHTML = `
             <span class="question-number">Questão ${q.id}</span>
             <div class="question-subject">${q.subject}</div>
             <div class="question-text">${q.text}</div>
             <div class="options-list">
-                ${q.options.map((opt, i) => `
-                  <div class="option-item" onclick="selectOption(${globalIndex}, '${opt.letter}')" id="q-${globalIndex}-opt-${i}">
-                      <div class="option-letter">${opt.letter}</div>
-                      <div class="option-text">${opt.text}</div>
-                  </div>
-              `).join('')}
+                ${q.options.map((opt, i) => {
+                    let stateClass = '';
+                    if (isCorrected) {
+                        if (opt.letter === q.correctAnswer) stateClass = 'correct-answer';
+                        else if (q.userAnswer === opt.letter) stateClass = 'wrong-answer';
+                    } else if (q.userAnswer === opt.letter) {
+                        stateClass = 'selected';
+                    }
+
+                    return `
+                        <div class="option-item ${stateClass}" onclick="selectOption(${globalIndex}, '${opt.letter}')">
+                            <div class="option-letter">${opt.letter}</div>
+                            <div class="option-text">${opt.text}</div>
+                        </div>
+                    `;
+                }).join('')}
             </div>
-            <div class="explanation" id="exp-${globalIndex}" style="display: none;">
-                <div class="explanation-title">Explicação do Professor:</div>
+            <div class="explanation" style="display: ${isCorrected ? 'block' : 'none'};">
+                <div class="explanation-title">Explicação:</div>
                 <div class="explanation-text">${q.explanation}</div>
             </div>
         `;
         container.appendChild(qCard);
-        
-        // Restore selection state
-        if (q.userAnswer) {
-            const selectedIndex = q.options.findIndex(opt => opt.letter === q.userAnswer);
-            if (selectedIndex !== -1) {
-                const selectedEl = document.getElementById(`q-${globalIndex}-opt-${selectedIndex}`);
-                if (selectedEl) selectedEl.classList.add('selected');
-            }
-        }
     });
 
     renderNav();
@@ -265,249 +171,137 @@ function renderPaginatedExam() {
     updatePaginationInfo();
 }
 
+function selectOption(qIdx, selectedLetter) {
+    if (isCorrected) return; // Bloqueia troca de resposta após finalizar
+    exam.questions[qIdx].userAnswer = selectedLetter;
+    renderPaginatedExam(); // Re-renderiza a página para mostrar a seleção
+    updateStats();
+}
+
 function renderNav() {
     const nav = document.getElementById('navContainer');
+    if (!nav) return;
     nav.innerHTML = '';
     const totalPages = Math.ceil(exam.questions.length / QUESTIONS_PER_PAGE);
+    
     for (let page = 0; page < totalPages; page++) {
         const btn = document.createElement('button');
         btn.className = `nav-btn ${page === currentPage ? 'active' : ''}`;
-        btn.textContent = `${(page * QUESTIONS_PER_PAGE) + 1}-${Math.min((page + 1) * QUESTIONS_PER_PAGE, exam.questions.length)}`;
+        
+        // Marca visualmente as páginas na navegação se já corrigido
+        if (isCorrected) {
+            const start = page * QUESTIONS_PER_PAGE;
+            const pageQs = exam.questions.slice(start, start + QUESTIONS_PER_PAGE);
+            const hasError = pageQs.some(q => q.userAnswer !== q.correctAnswer);
+            btn.classList.add(hasError ? 'nav-wrong' : 'nav-correct');
+        }
+
+        btn.textContent = `${(page * QUESTIONS_PER_PAGE) + 1}`;
         btn.onclick = () => goToPage(page);
-        btn.id = `nav-page-${page}`;
         nav.appendChild(btn);
     }
     document.getElementById('questionsNav').style.display = 'block';
 }
 
+// --- CONTROLES DE PAGINAÇÃO ---
+
+function goToPage(page) {
+    const totalPages = Math.ceil(exam.questions.length / QUESTIONS_PER_PAGE);
+    currentPage = Math.max(0, Math.min(page, totalPages - 1));
+    renderPaginatedExam();
+}
+
+function nextPage() { goToPage(currentPage + 1); }
+function prevPage() { goToPage(currentPage - 1); }
+
 function renderPagination() {
     const container = document.getElementById('paginationContainer');
     if (!container) return;
-
+    container.style.display = 'flex';
     const totalPages = Math.ceil(exam.questions.length / QUESTIONS_PER_PAGE);
+    
     container.innerHTML = `
-        <button class="pagination-btn" id="prevPage" onclick="prevPage()" ${currentPage === 0 ? 'disabled' : ''}>
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M15 19l-7-7 7-7" />
-            </svg>
-            Anterior
-        </button>
-        <span class="pagination-info" id="paginationInfo"></span>
-        <button class="pagination-btn" id="nextPage" onclick="nextPage()" ${currentPage === totalPages - 1 ? 'disabled' : ''}>
-            Próxima
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M9 5l7 7-7 7" />
-            </svg>
-        </button>
+        <button class="pagination-btn" onclick="prevPage()" ${currentPage === 0 ? 'disabled' : ''}>Anterior</button>
+        <span id="paginationInfo"></span>
+        <button class="pagination-btn" onclick="nextPage()" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Próxima</button>
     `;
 }
 
 function updatePaginationInfo() {
     const info = document.getElementById('paginationInfo');
     if (!info) return;
-    const start = currentPage * QUESTIONS_PER_PAGE + 1;
-    const end = Math.min((currentPage + 1) * QUESTIONS_PER_PAGE, exam.questions.length);
     const total = exam.questions.length;
-    info.textContent = `Página ${currentPage + 1} de ${Math.ceil(total / QUESTIONS_PER_PAGE)} (${start}-${end} de ${total})`;
-}
-
-function goToPage(page) {
-    currentPage = Math.max(0, Math.min(page, Math.ceil(exam.questions.length / QUESTIONS_PER_PAGE) - 1));
-    renderPaginatedExam();
-    updateStats();
-}
-
-function nextPage() {
-    goToPage(currentPage + 1);
-}
-
-function prevPage() {
-    goToPage(currentPage - 1);
-}
-
-function selectOption(qIdx, selectedLetter) {
-    if (isCorrected) return;
-
-    exam.questions[qIdx].userAnswer = selectedLetter;
-
-    const options = document.querySelectorAll(`#q-card-${qIdx} .option-item`);
-    options.forEach(opt => opt.classList.remove('selected'));
-
-    const selectedIndex = exam.questions[qIdx].options.findIndex(
-        opt => opt.letter === selectedLetter
-    );
-
-    if (selectedIndex !== -1) {
-        document
-            .getElementById(`q-${qIdx}-opt-${selectedIndex}`)
-            .classList.add('selected');
-    }
-
-    document.getElementById(`nav-btn-${qIdx}`)?.classList.add('answered');
-    updateStats();
-}
-
-// --- CONTROLES DO SIMULADO ---
-
-function startExamUI() {
-    document.getElementById('statsCard').style.display = 'block';
-    document.getElementById('actionsCard').style.display = 'block';
-    document.getElementById('btnExport').disabled = false;
-
-    if (document.getElementById('useTimer').checked) {
-        document.getElementById('timerContainer').style.display = 'block';
-        remainingTime = exam.timeLimit;
-        startTimer();
-    }
-
-    updateStats();
-}
-
-function updateStats() {
-    const answered = exam.questions.filter(q => q.userAnswer != null).length;
-    const total = exam.questions.length;
-
-    console.log("questoes: ", exam.questions)
-    console.log("answered: ", answered)
-    console.log("total: ", total)
-
-    document.getElementById('answeredCount').textContent = `${answered} respondidas`;
-    document.getElementById('totalCount').textContent = `Total: ${total}`;
-    document.getElementById('progressFill').style.width = `${(answered / total) * 100}%`;
-    document.getElementById('questionCount').textContent = `${total} questões`;
-}
-
-// --- CRONÔMETRO ---
-
-function startTimer() {
-    if (timerRunning) return;
-    timerRunning = true;
-    timerInterval = setInterval(() => {
-        if (remainingTime <= 0) {
-            clearInterval(timerInterval);
-            finishExam();
-            return;
-        }
-        remainingTime--;
-        displayTime();
-    }, 1000);
-}
-
-function displayTime() {
-    const m = Math.floor(remainingTime / 60);
-    const s = remainingTime % 60;
-    const display = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    const el = document.getElementById('timerDisplay');
-    el.textContent = display;
-
-    if (remainingTime < 300) el.className = 'timer-display danger';
-    else if (remainingTime < 900) el.className = 'timer-display warning';
-}
-
-function toggleTimer() {
-    if (timerRunning) {
-        clearInterval(timerInterval);
-        timerRunning = false;
-    } else {
-        startTimer();
-    }
+    info.textContent = `Página ${currentPage + 1} de ${Math.ceil(total / QUESTIONS_PER_PAGE)}`;
 }
 
 // --- FINALIZAÇÃO E CORREÇÃO ---
 
 function correctExam() {
-    if (isCorrected) return;
+    if (isCorrected || exam.questions.length === 0) return;
+    
     isCorrected = true;
-    clearInterval(timerInterval);
+    if (timerInterval) clearInterval(timerInterval);
 
     let correct = 0;
     let wrong = 0;
 
-    exam.questions.forEach((q, i) => {
-        const card = document.getElementById(`q-card-${i}`);
-        const navBtn = document.getElementById(`nav-btn-${i}`);
-
-        const correctIndex = q.options.findIndex(opt => opt.letter === q.correctAnswer);
-        const userIndex = q.options.findIndex(opt => opt.letter === q.userAnswer);
-
-        if (q.userAnswer === q.correctAnswer) {
-            correct++;
-            card.classList.add('correct');
-            navBtn?.classList.add('correct');
-        } else {
-            wrong++;
-            card.classList.add('wrong');
-            navBtn?.classList.add('wrong');
-
-            if (userIndex !== -1) {
-                document
-                    .getElementById(`q-${i}-opt-${userIndex}`)
-                    ?.classList.add('wrong-answer');
-            }
-        }
-
-        if (correctIndex !== -1) {
-            document
-                .getElementById(`q-${i}-opt-${correctIndex}`)
-                ?.classList.add('correct-answer');
-        }
-
-        document.getElementById(`exp-${i}`).style.display = 'block';
+    // Cálculo baseado no ARRAY de dados
+    exam.questions.forEach(q => {
+        if (q.userAnswer === q.correctAnswer) correct++;
+        else wrong++;
     });
 
+    // Atualiza estatísticas na tela
     document.getElementById('correctCount').textContent = correct;
     document.getElementById('wrongCount').textContent = wrong;
-
     const percent = Math.round((correct / exam.questions.length) * 100) || 0;
     document.getElementById('accuracyPercent').textContent = `${percent}%`;
 
+    // Atualiza a visualização para mostrar gabaritos e explicações
+    renderPaginatedExam();
     showResults(correct, wrong, percent);
 }
 
 function showResults(c, w, p) {
+    const modal = document.getElementById('resultsModal');
+    if (!modal) return;
     document.getElementById('resultScore').textContent = `${p}%`;
     document.getElementById('resultCorrect').textContent = c;
     document.getElementById('resultWrong').textContent = w;
-    document.getElementById('resultsModal').classList.add('active');
+    modal.classList.add('active');
 }
 
 function closeModal() {
     document.getElementById('resultsModal').classList.remove('active');
 }
 
-function clearExam() {
-    currentPage = 0;
-    exam.questions = [];
-    document.getElementById('questionsContainer').innerHTML = `
-        <div class="empty-state">
-            <div class="empty-icon">📝</div>
-            <h3 class="empty-title">Nenhum simulado gerado</h3>
-            <p class="empty-text">Configure as opções ao lado e clique em "Gerar Simulado" para começar a estudar.</p>
-        </div>
-    `;
-    document.getElementById('questionsNav').style.display = 'none';
-    document.getElementById('statsCard').style.display = 'none';
-    document.getElementById('actionsCard').style.display = 'none';
-    if (document.getElementById('paginationContainer')) {
-        document.getElementById('paginationContainer').style.display = 'none';
-    }
+// --- AUXILIARES ---
+
+function startExamUI() {
+    document.getElementById('statsCard').style.display = 'block';
+    document.getElementById('actionsCard').style.display = 'block';
+    updateStats();
 }
 
-// --- EXPORTAR PDF (Básico) ---
-function exportPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+function updateStats() {
+    const answered = exam.questions.filter(q => q.userAnswer !== null).length;
+    const total = exam.questions.length;
+    
+    const answeredEl = document.getElementById('answeredCount');
+    const totalEl = document.getElementById('totalCount');
+    const progressEl = document.getElementById('progressFill');
 
-    doc.setFontSize(18);
-    doc.text(`Simulado: ${exam.theme}`, 10, 20);
-    doc.setFontSize(12);
+    if (answeredEl) answeredEl.textContent = `${answered} respondidas`;
+    if (totalEl) totalEl.textContent = `Total: ${total}`;
+    if (progressEl) progressEl.style.width = `${(answered / total) * 100}%`;
+}
 
-    let y = 30;
-    exam.questions.forEach((q, i) => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.text(`${i + 1}. ${q.text.substring(0, 80)}...`, 10, y);
-        y += 10;
-    });
-
-    doc.save('simulado-questpro.pdf');
+function clearExam() {
+    isCorrected = false;
+    currentPage = 0;
+    exam.questions = [];
+    document.getElementById('questionsContainer').innerHTML = '';
+    document.getElementById('statsCard').style.display = 'none';
+    document.getElementById('actionsCard').style.display = 'none';
+    document.getElementById('questionsNav').style.display = 'none';
 }
